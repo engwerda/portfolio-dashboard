@@ -1,10 +1,10 @@
 const EXCHANGE_SUFFIX_MAP: Record<string, string> = {
   // US
   NYSE: '',
-  NasdaqGS: '',
-  NasdaqGM: '',
-  NasdaqCM: '',
   NASDAQ: '',
+  NASDAQGS: '',
+  NASDAQGM: '',
+  NASDAQCM: '',
   AMEX: '',
   OTC: '',
   // UK
@@ -17,14 +17,17 @@ const EXCHANGE_SUFFIX_MAP: Record<string, string> = {
   // Australia
   ASX: '.AX',
   // Hong Kong
+  SEHK: '.HK',
   HKSE: '.HK',
   HKG: '.HK',
   // India
   NSE: '.NS',
+  NSEI: '.NS',
   BSE: '.BO',
   // Vietnam
   HOSE: '.VN',
   HNX: '.VN',
+  'UNQ-VNM': '.VN',
   // Thailand
   SET: '.BK',
   BKK: '.BK',
@@ -48,9 +51,15 @@ const EXCHANGE_SUFFIX_MAP: Record<string, string> = {
   SWX: '.SW',
   // Korea
   KRX: '.KS',
+  KOSE: '.KS',
   KOSDAQ: '.KQ',
   // Singapore
   SES: '.SI',
+  SGX: '.SI',
+  // Indonesia
+  IDX: '.JK',
+  // Philippines
+  PSE: '.PS',
   // Brazil
   BVMF: '.SA',
   // Mexico
@@ -59,6 +68,24 @@ const EXCHANGE_SUFFIX_MAP: Record<string, string> = {
   JSE: '.JO',
 };
 
+function normalizeYahooSymbol(exchange: string, symbol: string): string {
+  const exchangeKey = exchange.trim().toUpperCase();
+  let normalized = symbol.trim().toUpperCase();
+
+  // S&P/CIQ Korean tickers are often prefixed with A (e.g. KOSE:A003230),
+  // while Yahoo expects the six-digit numeric symbol.
+  if ((exchangeKey === 'KOSE' || exchangeKey === 'KOSDAQ' || exchangeKey === 'KRX') && /^A\d{6}$/.test(normalized)) {
+    normalized = normalized.slice(1);
+  }
+
+  // Yahoo pads Hong Kong numeric tickers to four digits: 992 -> 0992.HK.
+  if ((exchangeKey === 'SEHK' || exchangeKey === 'HKSE' || exchangeKey === 'HKG') && /^\d{1,3}$/.test(normalized)) {
+    normalized = normalized.padStart(4, '0');
+  }
+
+  return normalized;
+}
+
 export function mapTickerToYahoo(ticker: string): { yahooTicker: string; exchange: string } {
   const colonIndex = ticker.indexOf(':');
   if (colonIndex === -1) {
@@ -66,15 +93,17 @@ export function mapTickerToYahoo(ticker: string): { yahooTicker: string; exchang
   }
 
   const exchange = ticker.substring(0, colonIndex).trim();
+  const exchangeKey = exchange.toUpperCase();
   const symbol = ticker.substring(colonIndex + 1).trim();
 
-  const suffix = EXCHANGE_SUFFIX_MAP[exchange];
+  const suffix = EXCHANGE_SUFFIX_MAP[exchangeKey];
+  const yahooSymbol = normalizeYahooSymbol(exchangeKey, symbol);
   if (suffix !== undefined) {
-    return { yahooTicker: `${symbol}${suffix}`, exchange };
+    return { yahooTicker: `${yahooSymbol}${suffix}`, exchange };
   }
 
   // Unknown exchange — return symbol as-is
-  return { yahooTicker: symbol, exchange };
+  return { yahooTicker: yahooSymbol, exchange };
 }
 
 export function getExchangePrefix(ticker: string): string {

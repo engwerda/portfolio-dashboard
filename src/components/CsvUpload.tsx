@@ -15,7 +15,7 @@ export function CsvUpload({ onParsed }: Props) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
-        const result = parseCsv(text);
+        const result = parseCsv(text, { fileName: file.name });
         setWarnings(result.warnings);
         if (result.holdings.length > 0) {
           onParsed(result.holdings, result.warnings);
@@ -80,7 +80,7 @@ export function CsvUpload({ onParsed }: Props) {
           {dragging ? 'Drop your CSV here' : 'Drag & drop your portfolio CSV'}
         </p>
         <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
-          or click to browse — expects columns: Date, Ticker, Company Name, Shares, Currency
+          or click to browse — supports common portfolio CSV formats (Ticker/CIQ Ticker, Shares/No. shares, Currency/trading_currency)
         </p>
       </div>
 
