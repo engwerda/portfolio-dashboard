@@ -82,6 +82,19 @@ export async function fetchQuote(yahooTicker: string, companyName?: string): Pro
   }
 }
 
+export function enrichHoldingFromImportedData(holding: EnrichedHolding): Partial<EnrichedHolding> | null {
+  if (holding.importedPrice === undefined) return null;
+
+  return {
+    resolved: true,
+    failed: false,
+    currentPrice: holding.importedPrice,
+    sector: holding.sector ?? holding.importedSector,
+    industry: holding.industry ?? holding.importedIndustry,
+    quoteCurrency: holding.quoteCurrency ?? holding.currency,
+  };
+}
+
 export async function enrichHolding(holding: EnrichedHolding): Promise<Partial<EnrichedHolding>> {
   const quote = await fetchQuote(holding.yahooTicker, holding.companyName);
 

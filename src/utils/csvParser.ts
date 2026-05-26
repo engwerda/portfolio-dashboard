@@ -14,7 +14,17 @@ interface ParseCsvOptions {
 
 type CsvRow = Record<string, string | undefined>;
 
-type FieldName = 'date' | 'ticker' | 'companyName' | 'shares' | 'currency' | 'code' | 'country';
+type FieldName =
+  | 'date'
+  | 'ticker'
+  | 'companyName'
+  | 'shares'
+  | 'currency'
+  | 'code'
+  | 'country'
+  | 'price'
+  | 'sector'
+  | 'industry';
 
 const FIELD_ALIASES: Record<FieldName, string[]> = {
   date: [
@@ -69,6 +79,9 @@ const FIELD_ALIASES: Record<FieldName, string[]> = {
   ],
   code: ['Code', 'Local Code', 'Bloomberg Code', 'RIC'],
   country: ['Country', 'country', 'Market Country', 'Domicile'],
+  price: ['Close price', 'Close Price', 'Price', 'Last Price', 'Market Price', 'close_price'],
+  sector: ['Sector', 'sector', 'Industry'],
+  industry: ['gics_subindustry', 'GICS Sub-Industry', 'Sub-Industry', 'Industry Group'],
 };
 
 const EXCHANGE_CURRENCY_MAP: Record<string, string> = {
@@ -340,6 +353,9 @@ export function parseCsv(csvText: string, options: ParseCsvOptions = {}): ParseR
     const currencyRaw = readFirstValue(row, FIELD_ALIASES.currency);
     const code = readFirstValue(row, FIELD_ALIASES.code);
     const country = readFirstValue(row, FIELD_ALIASES.country);
+    const priceRaw = readFirstValue(row, FIELD_ALIASES.price);
+    const sector = readFirstValue(row, FIELD_ALIASES.sector);
+    const industry = readFirstValue(row, FIELD_ALIASES.industry);
 
     const ticker = normalizeTicker(tickerRaw);
 
@@ -349,7 +365,8 @@ export function parseCsv(csvText: string, options: ParseCsvOptions = {}): ParseR
     }
 
     if (isCashLikeHolding(ticker, companyName)) {
-      warnings.push({ type: 'skipped', message: `Row ${csvRowNumber}: Skipped cash/non-equity row`, row: csvRowNumber });
+      // Cash rows are expected in allocation exports but are not equity holdings,
+      // so omit them without surfacing a user-facing CSV warning.
       continue;
     }
 
@@ -371,13 +388,20 @@ export function parseCsv(csvText: string, options: ParseCsvOptions = {}): ParseR
       if (!snapshotDate && parsedRowDate) snapshotDate = parsedRowDate;
     }
 
-    holdings.push({
+    const holding: RawHolding = {
       date: rowDate,
       ticker,
       companyName,
       shares,
       currency: fixedCurrency,
-    });
+    };
+
+    const importedPrice = parseFlexibleNumber(priceRaw);
+    if (importedPrice !== null) holding.importedPrice = importedPrice;
+    if (sector) holding.importedSector = sector;
+    if (industry) holding.importedIndustry = industry;
+
+    holdings.push(holding);
   }
 
   return { holdings, warnings, snapshotDate };

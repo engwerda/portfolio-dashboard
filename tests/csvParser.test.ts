@@ -38,6 +38,8 @@ test('parses snake_case portfolio snapshot exports', () => {
     companyName: 'Arvind Limited',
     shares: 3_350_000,
     currency: 'INR',
+    importedSector: 'Consumer Discretionary',
+    importedIndustry: 'Textiles',
   });
 });
 
@@ -60,6 +62,8 @@ test('parses NTAsset allocation exports with CIQ ticker, inferred currency, file
     companyName: 'AIA Group Limited',
     shares: 4_700_000,
     currency: 'HKD',
+    importedPrice: 86.6,
+    importedSector: 'Financials',
   });
   assert.deepEqual(result.holdings[1], {
     date: '2026-05-12',
@@ -67,9 +71,11 @@ test('parses NTAsset allocation exports with CIQ ticker, inferred currency, file
     companyName: 'Samyang Foods Co., Ltd.',
     shares: 35_000,
     currency: 'KRW',
+    importedPrice: 1_319_000,
+    importedSector: 'Consumer Staples',
   });
   assert.equal(result.snapshotDate?.getFullYear(), 2026);
   assert.equal(result.snapshotDate?.getMonth(), 4);
   assert.equal(result.snapshotDate?.getDate(), 12);
-  assert.ok(result.warnings.some((warning) => /cash|non-equity/i.test(warning.message)));
+  assert.equal(result.warnings.length, 0);
 });

@@ -1,3 +1,14 @@
+interface YahooSearchQuote {
+  symbol?: string;
+  quoteType?: string;
+  exchange?: string;
+  exchDisp?: string;
+}
+
+interface SearchYahooTickerOptions {
+  sourceTicker?: string;
+}
+
 const EXCHANGE_SUFFIX_MAP: Record<string, string> = {
   // US
   NYSE: '',
@@ -68,6 +79,23 @@ const EXCHANGE_SUFFIX_MAP: Record<string, string> = {
   JSE: '.JO',
 };
 
+const SEARCH_EXCHANGE_HINTS: Record<string, { suffixes: string[]; exchanges: string[]; exchangeNames: string[] }> = {
+  BSE: { suffixes: ['.BO'], exchanges: ['BSE'], exchangeNames: ['Bombay'] },
+  NSE: { suffixes: ['.NS'], exchanges: ['NSI'], exchangeNames: ['NSE'] },
+  NSEI: { suffixes: ['.NS'], exchanges: ['NSI'], exchangeNames: ['NSE'] },
+  SEHK: { suffixes: ['.HK'], exchanges: ['HKG'], exchangeNames: ['Hong Kong'] },
+  HKSE: { suffixes: ['.HK'], exchanges: ['HKG'], exchangeNames: ['Hong Kong'] },
+  HKG: { suffixes: ['.HK'], exchanges: ['HKG'], exchangeNames: ['Hong Kong'] },
+  HOSE: { suffixes: ['.VN'], exchanges: [], exchangeNames: ['Vietnam'] },
+  HNX: { suffixes: ['.VN'], exchanges: [], exchangeNames: ['Vietnam'] },
+  'UNQ-VNM': { suffixes: ['.VN'], exchanges: [], exchangeNames: ['Vietnam'] },
+  KOSE: { suffixes: ['.KS'], exchanges: ['KSC'], exchangeNames: ['Korea'] },
+  KOSDAQ: { suffixes: ['.KQ'], exchanges: ['KOE'], exchangeNames: ['KOSDAQ'] },
+  IDX: { suffixes: ['.JK'], exchanges: ['JKT'], exchangeNames: ['Jakarta'] },
+  PSE: { suffixes: ['.PS'], exchanges: [], exchangeNames: ['Philippines'] },
+  SET: { suffixes: ['.BK'], exchanges: ['SET'], exchangeNames: ['Thailand'] },
+};
+
 function normalizeYahooSymbol(exchange: string, symbol: string): string {
   const exchangeKey = exchange.trim().toUpperCase();
   let normalized = symbol.trim().toUpperCase();
@@ -111,15 +139,39 @@ export function getExchangePrefix(ticker: string): string {
   return colonIndex === -1 ? '' : ticker.substring(0, colonIndex).trim();
 }
 
-export async function searchYahooTicker(query: string): Promise<string | null> {
+function isCompatibleQuote(quote: YahooSearchQuote, sourceExchange: string): boolean {
+  const hints = SEARCH_EXCHANGE_HINTS[sourceExchange];
+  if (!hints) return true;
+
+  const symbol = quote.symbol?.toUpperCase() ?? '';
+  const exchange = quote.exchange?.toUpperCase() ?? '';
+  const exchangeName = quote.exchDisp?.toLowerCase() ?? '';
+
+  return (
+    hints.suffixes.some((suffix) => symbol.endsWith(suffix)) ||
+    hints.exchanges.some((candidate) => exchange === candidate.toUpperCase()) ||
+    hints.exchangeNames.some((candidate) => exchangeName.includes(candidate.toLowerCase()))
+  );
+}
+
+function pickYahooSearchSymbol(quotes: YahooSearchQuote[], sourceTicker?: string): string | null {
+  const equityQuotes = quotes.filter((quote) => !quote.quoteType || quote.quoteType === 'EQUITY');
+  if (equityQuotes.length === 0) return null;
+
+  const sourceExchange = sourceTicker ? getExchangePrefix(sourceTicker).toUpperCase() : '';
+  const match = sourceExchange
+    ? equityQuotes.find((quote) => isCompatibleQuote(quote, sourceExchange))
+    : equityQuotes[0];
+
+  return match?.symbol ?? null;
+}
+
+export async function searchYahooTicker(query: string, options: SearchYahooTickerOptions = {}): Promise<string | null> {
   try {
     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
     const data = await res.json();
     const quotes = data?.quotes ?? data?.finance?.result ?? [];
-    if (quotes.length > 0) {
-      return quotes[0].symbol ?? null;
-    }
-    return null;
+    return pickYahooSearchSymbol(quotes, options.sourceTicker);
   } catch {
     return null;
   }

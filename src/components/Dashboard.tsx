@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { EnrichedHolding, FxRates, BaseCurrency, ParseWarning, RawHolding } from '../types';
 import { mapTickerToYahoo, searchYahooTicker } from '../utils/tickerMapper';
-import { enrichHolding } from '../api/enrich';
+import { enrichHolding, enrichHoldingFromImportedData } from '../api/enrich';
 import { fetchFxRates, convertToBaseCurrency } from '../api/fx';
 import { TotalValueCard } from './TotalValueCard';
 import { HoldingsTable } from './HoldingsTable';
@@ -80,15 +80,28 @@ export function Dashboard({ holdings: rawHoldings, warnings, onReset }: Props) {
           // Try to enrich; if it fails, attempt search fallback
           let result = await enrichHolding(holding);
 
-          if (result.failed && holding.yahooTicker === holding.ticker.split(':').pop()) {
-            // The ticker was mapped but maybe incorrectly — try search
-            const searched = await searchYahooTicker(holding.companyName || holding.ticker);
-            if (searched) {
+          if (result.failed) {
+            // Some source exports use exchange-local identifiers that Yahoo
+            // cannot quote directly (for example BSE numeric security codes).
+            const searched = await searchYahooTicker(holding.companyName || holding.ticker, {
+              sourceTicker: holding.ticker,
+            });
+            if (searched && searched !== holding.yahooTicker) {
               yahooTicker = searched;
               const retry = await enrichHolding({ ...holding, yahooTicker: searched });
               if (!retry.failed) {
                 result = { ...retry, yahooTicker: searched };
               }
+            }
+          }
+
+          if (result.failed) {
+            // If Yahoo has no live quote for the local exchange, keep the
+            // imported snapshot price instead of treating the holding as
+            // unresolved. This is common for some frontier/local exchanges.
+            const importedFallback = enrichHoldingFromImportedData(holding);
+            if (importedFallback) {
+              result = importedFallback;
             }
           }
 

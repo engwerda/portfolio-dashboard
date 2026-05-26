@@ -5,6 +5,7 @@ import { build } from 'esbuild';
 
 const testEntries = [
   'tests/csvParser.test.ts',
+  'tests/enrich.test.ts',
   'tests/tickerMapper.test.ts',
 ];
 const outdir = '.tmp/tests';

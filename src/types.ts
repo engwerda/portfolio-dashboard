@@ -4,6 +4,9 @@ export interface RawHolding {
   companyName: string;
   shares: number;
   currency: string;
+  importedPrice?: number;
+  importedSector?: string;
+  importedIndustry?: string;
 }
 
 export interface EnrichedHolding extends RawHolding {
