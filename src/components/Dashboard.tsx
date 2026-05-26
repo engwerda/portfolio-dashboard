@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { EnrichedHolding, FxRates, BaseCurrency, ParseWarning, RawHolding } from '../types';
 import { mapTickerToYahoo, searchYahooTicker } from '../utils/tickerMapper';
 import { enrichHolding } from '../api/enrich';
@@ -40,22 +40,21 @@ export function Dashboard({ holdings: rawHoldings, warnings, onReset }: Props) {
     setHoldings(initial);
   }, [rawHoldings]);
 
-  // Compute market values when FX rates or base currency change
-  useEffect(() => {
-    setHoldings((prev) =>
-      prev.map((h) => {
-        if (!h.resolved || h.failed || h.currentPrice === undefined) return h;
-        const valueInQuoteCurrency = h.shares * h.currentPrice;
-        const valueInBase = convertToBaseCurrency(
-          valueInQuoteCurrency,
-          h.quoteCurrency || h.currency,
-          baseCurrency,
-          fxRates
-        );
-        return { ...h, marketValueBase: valueInBase ?? undefined };
-      })
-    );
-  }, [fxRates, baseCurrency]);
+  // Compute market values as derived state — avoids stale useEffect dependency issues
+  const enrichedHoldings = useMemo(() =>
+    holdings.map((h) => {
+      if (!h.resolved || h.failed || h.currentPrice === undefined) return h;
+      const valueInQuoteCurrency = h.shares * h.currentPrice;
+      const valueInBase = convertToBaseCurrency(
+        valueInQuoteCurrency,
+        h.quoteCurrency || h.currency,
+        baseCurrency,
+        fxRates
+      );
+      return { ...h, marketValueBase: valueInBase ?? undefined };
+    }),
+    [holdings, fxRates, baseCurrency]
+  );
 
   // Enrich holdings progressively
   useEffect(() => {
@@ -146,13 +145,13 @@ export function Dashboard({ holdings: rawHoldings, warnings, onReset }: Props) {
     }
   }, [holdings]);
 
-  const resolvedCount = holdings.filter((h) => h.resolved).length;
-  const failedTickers = holdings.filter((h) => h.failed);
-  const totalValue = holdings
+  const resolvedCount = enrichedHoldings.filter((h) => h.resolved).length;
+  const failedTickers = enrichedHoldings.filter((h) => h.failed);
+  const totalValue = enrichedHoldings
     .filter((h) => h.marketValueBase !== undefined)
     .reduce((sum, h) => sum + (h.marketValueBase ?? 0), 0);
 
-  const totalDayChange = holdings
+  const totalDayChange = enrichedHoldings
     .filter((h) => h.dayChange !== undefined && h.marketValueBase !== undefined)
     .reduce((sum, h) => {
       // dayChange is per share; scale by shares, then convert
@@ -206,21 +205,21 @@ export function Dashboard({ holdings: rawHoldings, warnings, onReset }: Props) {
         totalDayChange={totalDayChange || null}
         totalDayChangePercent={totalDayChangePercent}
         baseCurrency={baseCurrency}
-        holdingCount={holdings.length}
+        holdingCount={enrichedHoldings.length}
         resolvedCount={resolvedCount}
       />
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SectorChart holdings={holdings} />
-        <CurrencyChart holdings={holdings} />
+        <SectorChart holdings={enrichedHoldings} />
+        <CurrencyChart holdings={enrichedHoldings} />
       </div>
 
       {/* Holdings Chart */}
-      <HoldingsChart holdings={holdings} baseCurrency={baseCurrency} />
+      <HoldingsChart holdings={enrichedHoldings} baseCurrency={baseCurrency} />
 
       {/* Holdings Table */}
-      <HoldingsTable holdings={holdings} baseCurrency={baseCurrency} />
+      <HoldingsTable holdings={enrichedHoldings} baseCurrency={baseCurrency} />
     </div>
   );
 }

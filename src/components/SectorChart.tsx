@@ -12,13 +12,14 @@ interface Props {
 }
 
 export function SectorChart({ holdings }: Props) {
-  const resolved = holdings.filter((h) => h.resolved && !h.failed && h.marketValueBase !== undefined && h.sector);
+  const resolved = holdings.filter((h) => h.resolved && !h.failed && h.marketValueBase !== undefined);
 
   if (resolved.length === 0) {
+    const hasUnresolved = holdings.some((h) => !h.resolved);
     return (
       <div className="card p-6">
         <h3 className="text-lg font-semibold mb-4">Sector Allocation</h3>
-        <p className="text-sm text-gray-500 dark:text-slate-400">Loading data...</p>
+        <p className="text-sm text-gray-500 dark:text-slate-400">{hasUnresolved ? 'Loading data...' : 'No data available'}</p>
       </div>
     );
   }

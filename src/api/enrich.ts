@@ -22,15 +22,14 @@ function rawVal(obj: any): number | null {
   return null;
 }
 
-export async function fetchQuote(yahooTicker: string): Promise<QuoteResponse> {
+export async function fetchQuote(yahooTicker: string, companyName?: string): Promise<QuoteResponse> {
   try {
     const res = await fetch(`/api/quote?ticker=${encodeURIComponent(yahooTicker)}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
+    // Extract price data from chart API
     const chartResult = data?.chart?.chart?.result?.[0] ?? data?.chart?.result?.[0];
-    const summaryResult = data?.summary?.quoteSummary?.result?.[0];
-
     const meta = chartResult?.meta;
     const currentPrice = meta?.regularMarketPrice ?? null;
     const previousClose = meta?.previousClose ?? meta?.chartPreviousClose ?? null;
@@ -39,10 +38,19 @@ export async function fetchQuote(yahooTicker: string): Promise<QuoteResponse> {
     const dayChange = currentPrice && previousClose ? currentPrice - previousClose : null;
     const dayChangePercent = previousClose && dayChange !== null ? (dayChange / previousClose) * 100 : null;
 
+    // Extract sector/industry from search API response
+    const searchQuotes = data?.search?.quotes ?? [];
+    const searchMatch = searchQuotes.find(
+      (q: any) => q.symbol === yahooTicker || q.sector
+    ) ?? searchQuotes[0];
+    const sector = searchMatch?.sector ?? null;
+    const industry = searchMatch?.industry ?? null;
+
+    // Try to extract fundamentals from summary if available (crumb-auth)
+    const summaryResult = data?.summary?.finance?.result?.[0] ?? data?.summary?.quoteSummary?.result?.[0];
     const summaryDetail = summaryResult?.summaryDetail;
     const financialData = summaryResult?.financialData;
     const defaultKeyStatistics = summaryResult?.defaultKeyStatistics;
-    const summaryProfile = summaryResult?.summaryProfile;
 
     return {
       currentPrice,
@@ -53,8 +61,8 @@ export async function fetchQuote(yahooTicker: string): Promise<QuoteResponse> {
       peRatio: rawVal(defaultKeyStatistics?.trailingPE) ?? rawVal(summaryDetail?.trailingPE),
       dividendYield: rawVal(summaryDetail?.dividendYield) ?? rawVal(financialData?.dividendYield),
       eps: rawVal(defaultKeyStatistics?.trailingEps),
-      sector: summaryProfile?.sector ?? null,
-      industry: summaryProfile?.industry ?? null,
+      sector,
+      industry,
       quoteCurrency,
     };
   } catch (err: any) {
@@ -76,15 +84,15 @@ export async function fetchQuote(yahooTicker: string): Promise<QuoteResponse> {
 }
 
 export async function enrichHolding(holding: EnrichedHolding): Promise<Partial<EnrichedHolding>> {
-  const quote = await fetchQuote(holding.yahooTicker);
+  const quote = await fetchQuote(holding.yahooTicker, holding.companyName);
 
-  if (quote.error) {
+  if (quote.error && !quote.currentPrice) {
     return { resolved: true, failed: true };
   }
 
   return {
     resolved: true,
-    failed: false,
+    failed: !quote.currentPrice,
     currentPrice: quote.currentPrice ?? undefined,
     previousClose: quote.previousClose ?? undefined,
     dayChange: quote.dayChange ?? undefined,

@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+
 function yahooApiPlugin() {
   return {
     name: 'yahoo-api-proxy',
     configureServer(server: any) {
-      const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' };
-
       server.middlewares.use('/api/quote', async (req: any, res: any) => {
         try {
           const url = new URL(req.url, `http://${req.headers.host}`);
@@ -17,22 +17,22 @@ function yahooApiPlugin() {
             return;
           }
 
-          const [chartRes, summaryRes] = await Promise.all([
+          const [chartRes, searchRes] = await Promise.all([
             fetch(
               `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1d&interval=1d&includePrePost=false`,
-              { headers }
+              { headers: { 'User-Agent': UA } }
             ),
             fetch(
-              `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=summaryProfile,financialData,defaultKeyStatistics,summaryDetail`,
-              { headers }
+              `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}&quotesCount=1&newsCount=0`,
+              { headers: { 'User-Agent': UA } }
             ),
           ]);
 
           const chartData = await chartRes.json();
-          const summaryData = await summaryRes.json();
+          const searchData = await searchRes.json();
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ chart: chartData, summary: summaryData }));
+          res.end(JSON.stringify({ chart: chartData, search: searchData }));
         } catch (err: any) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: err.message }));
@@ -51,7 +51,7 @@ function yahooApiPlugin() {
 
           const searchRes = await fetch(
             `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=5`,
-            { headers }
+            { headers: { 'User-Agent': UA } }
           );
           const data = await searchRes.json();
 
@@ -81,7 +81,7 @@ function yahooApiPlugin() {
               try {
                 const chartRes = await fetch(
                   `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(pair)}?range=1d&interval=1d`,
-                  { headers }
+                  { headers: { 'User-Agent': UA } }
                 );
                 const data = await chartRes.json();
                 const meta = data?.chart?.result?.[0]?.meta;
