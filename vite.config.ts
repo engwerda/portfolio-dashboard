@@ -3,6 +3,36 @@ import react from '@vitejs/plugin-react';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 
+// Crumb auth cache for dev server
+let cachedAuth: { cookie: string; crumb: string; expires: number } | null = null;
+
+async function getYahooAuth(): Promise<{ cookie: string; crumb: string }> {
+  if (cachedAuth && Date.now() < cachedAuth.expires) {
+    return { cookie: cachedAuth.cookie, crumb: cachedAuth.crumb };
+  }
+
+  const consentRes = await fetch('https://guce.yahoo.com/consent?gcrumb=&sessionId=&lang=en-US', {
+    headers: { 'User-Agent': UA },
+    redirect: 'manual',
+  });
+
+  const setCookies = consentRes.headers.getSetCookie?.() || [];
+  const cookie = setCookies.map((c: string) => c.split(';')[0]).join('; ');
+
+  const crumbRes = await fetch('https://query1.finance.yahoo.com/v1/test/getcrumb', {
+    headers: { 'User-Agent': UA, Cookie: cookie },
+  });
+
+  if (!crumbRes.ok) {
+    throw new Error(`Failed to get crumb: ${crumbRes.status}`);
+  }
+
+  const crumb = await crumbRes.text();
+  cachedAuth = { cookie, crumb, expires: Date.now() + 8 * 60 * 1000 };
+
+  return { cookie, crumb };
+}
+
 function yahooApiPlugin() {
   return {
     name: 'yahoo-api-proxy',
@@ -17,7 +47,7 @@ function yahooApiPlugin() {
             return;
           }
 
-          const [chartRes, searchRes] = await Promise.all([
+          const [chartRes, searchRes, auth] = await Promise.all([
             fetch(
               `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1d&interval=1d&includePrePost=false`,
               { headers: { 'User-Agent': UA } }
@@ -26,13 +56,28 @@ function yahooApiPlugin() {
               `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}&quotesCount=1&newsCount=0`,
               { headers: { 'User-Agent': UA } }
             ),
+            getYahooAuth(),
           ]);
 
           const chartData = await chartRes.json();
           const searchData = await searchRes.json();
 
+          // Fetch fundamentals using crumb auth
+          let summaryData: any = null;
+          try {
+            const summaryRes = await fetch(
+              `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=summaryDetail,defaultKeyStatistics&crumb=${auth.crumb}`,
+              { headers: { 'User-Agent': UA, Cookie: auth.cookie } }
+            );
+            if (summaryRes.ok) {
+              summaryData = await summaryRes.json();
+            }
+          } catch {
+            // Summary is optional
+          }
+
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ chart: chartData, search: searchData }));
+          res.end(JSON.stringify({ chart: chartData, search: searchData, summary: summaryData }));
         } catch (err: any) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: err.message }));

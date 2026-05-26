@@ -47,9 +47,8 @@ export async function fetchQuote(yahooTicker: string, companyName?: string): Pro
     const industry = searchMatch?.industry ?? null;
 
     // Try to extract fundamentals from summary if available (crumb-auth)
-    const summaryResult = data?.summary?.finance?.result?.[0] ?? data?.summary?.quoteSummary?.result?.[0];
+    const summaryResult = data?.summary?.quoteSummary?.result?.[0] ?? data?.summary?.finance?.result?.[0];
     const summaryDetail = summaryResult?.summaryDetail;
-    const financialData = summaryResult?.financialData;
     const defaultKeyStatistics = summaryResult?.defaultKeyStatistics;
 
     return {
@@ -58,8 +57,8 @@ export async function fetchQuote(yahooTicker: string, companyName?: string): Pro
       dayChange,
       dayChangePercent,
       marketCap: rawVal(summaryDetail?.marketCap),
-      peRatio: rawVal(defaultKeyStatistics?.trailingPE) ?? rawVal(summaryDetail?.trailingPE),
-      dividendYield: rawVal(summaryDetail?.dividendYield) ?? rawVal(financialData?.dividendYield),
+      peRatio: rawVal(summaryDetail?.trailingPE) ?? rawVal(defaultKeyStatistics?.trailingPE) ?? rawVal(defaultKeyStatistics?.forwardPE),
+      dividendYield: rawVal(summaryDetail?.dividendYield),
       eps: rawVal(defaultKeyStatistics?.trailingEps),
       sector,
       industry,
