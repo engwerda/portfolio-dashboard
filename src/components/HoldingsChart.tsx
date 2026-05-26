@@ -107,7 +107,7 @@ export function HoldingsChart({ holdings, baseCurrency }: Props) {
         </div>
       </div>
       <div style={{ height: chartHeight }}>
-        <Bar data={data} options={options} />
+        <Bar key={isDark ? 'dark' : 'light'} data={data} options={options} />
       </div>
     </div>
   );

@@ -45,6 +45,7 @@ export function CurrencyChart({ holdings }: Props) {
   };
 
   const isDark = useDarkMode();
+  const legendTextColor = isDark ? '#e2e8f0' : '#374151';
 
   const options = {
     responsive: true,
@@ -54,7 +55,7 @@ export function CurrencyChart({ holdings }: Props) {
       legend: {
         position: 'right' as const,
         labels: {
-          color: isDark ? '#e2e8f0' : '#374151',
+          color: legendTextColor,
           padding: 12,
           usePointStyle: true,
           pointStyleWidth: 10,
@@ -65,6 +66,7 @@ export function CurrencyChart({ holdings }: Props) {
               text: `${label} (${((dataset.data[i] / total) * 100).toFixed(1)}%)`,
               fillStyle: dataset.backgroundColor[i],
               strokeStyle: 'transparent',
+              fontColor: legendTextColor,
               hidden: false,
               index: i,
               pointStyle: 'circle' as const,
@@ -94,7 +96,7 @@ export function CurrencyChart({ holdings }: Props) {
     <div className="card p-6">
       <h3 className="text-lg font-semibold mb-4">Currency Exposure</h3>
       <div className="h-64">
-        <Doughnut data={data} options={options} />
+        <Doughnut key={isDark ? 'dark' : 'light'} data={data} options={options} />
       </div>
     </div>
   );
