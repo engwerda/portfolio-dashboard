@@ -45,6 +45,8 @@ export function SectorChart({ holdings }: Props) {
     }],
   };
 
+  const isDark = document.documentElement.classList.contains('dark');
+
   const options = {
     responsive: true,
     maintainAspectRatio: false,
@@ -53,11 +55,11 @@ export function SectorChart({ holdings }: Props) {
       legend: {
         position: 'right' as const,
         labels: {
-          color: document.documentElement.classList.contains('dark') ? '#94a3b8' : '#6b7280',
+          color: isDark ? '#e2e8f0' : '#374151',
           padding: 12,
           usePointStyle: true,
           pointStyleWidth: 10,
-          font: { size: 11 },
+          font: { size: 12 },
           generateLabels: (chart: any) => {
             const dataset = chart.data.datasets[0];
             return chart.data.labels.map((label: string, i: number) => ({
@@ -72,6 +74,12 @@ export function SectorChart({ holdings }: Props) {
         },
       },
       tooltip: {
+        backgroundColor: isDark ? '#1e293b' : '#fff',
+        titleColor: isDark ? '#e2e8f0' : '#111827',
+        bodyColor: isDark ? '#cbd5e1' : '#374151',
+        borderColor: isDark ? '#334155' : '#e5e7eb',
+        borderWidth: 1,
+        padding: 10,
         callbacks: {
           label: (ctx: any) => {
             const val = ctx.parsed;

@@ -46,6 +46,11 @@ export function HoldingsChart({ holdings, baseCurrency }: Props) {
     }],
   };
 
+  const isDark = document.documentElement.classList.contains('dark');
+
+  // Dynamic height based on number of holdings
+  const chartHeight = Math.max(200, resolved.length * 32);
+
   const options = {
     indexAxis: 'y' as const,
     responsive: true,
@@ -63,7 +68,7 @@ export function HoldingsChart({ holdings, baseCurrency }: Props) {
     scales: {
       x: {
         ticks: {
-          color: document.documentElement.classList.contains('dark') ? '#64748b' : '#9ca3af',
+          color: isDark ? '#94a3b8' : '#6b7280',
           callback: (value: any) => {
             if (value >= 1e6) return `$${(value / 1e6).toFixed(0)}M`;
             if (value >= 1e3) return `$${(value / 1e3).toFixed(0)}K`;
@@ -71,21 +76,18 @@ export function HoldingsChart({ holdings, baseCurrency }: Props) {
           },
         },
         grid: {
-          color: document.documentElement.classList.contains('dark') ? 'rgba(148,163,184,0.1)' : 'rgba(0,0,0,0.05)',
+          color: isDark ? '#334155' : 'rgba(0,0,0,0.05)',
         },
       },
       y: {
         ticks: {
-          color: document.documentElement.classList.contains('dark') ? '#94a3b8' : '#6b7280',
+          color: isDark ? '#e2e8f0' : '#6b7280',
           font: { size: 11, weight: 'bold' as const },
         },
         grid: { display: false },
       },
     },
   };
-
-  // Dynamic height based on number of holdings
-  const chartHeight = Math.max(200, resolved.length * 32);
 
   return (
     <div className="card p-6">
