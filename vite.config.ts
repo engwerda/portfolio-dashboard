@@ -130,7 +130,28 @@ function yahooApiPlugin() {
                 );
                 const data = await chartRes.json();
                 const meta = data?.chart?.result?.[0]?.meta;
-                results[pair] = meta?.regularMarketPrice ?? null;
+                const price = meta?.regularMarketPrice;
+
+                // If direct pair returned 0 or null, try the inverse
+                if (!price && pair.endsWith('=X')) {
+                  const currencies = pair.slice(0, -2);
+                  const inverse = currencies.slice(3) + currencies.slice(0, 3) + '=X';
+                  try {
+                    const invRes = await fetch(
+                      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(inverse)}?range=1d&interval=1d`,
+                      { headers: { 'User-Agent': UA } }
+                    );
+                    const invData = await invRes.json();
+                    const invMeta = invData?.chart?.result?.[0]?.meta;
+                    const invPrice = invMeta?.regularMarketPrice;
+                    if (invPrice) {
+                      results[pair] = 1 / invPrice;
+                      return;
+                    }
+                  } catch {}
+                }
+
+                results[pair] = price ?? null;
               } catch {
                 results[pair] = null;
               }
