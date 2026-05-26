@@ -1,5 +1,6 @@
 import { Doughnut } from 'react-chartjs-2';
 import type { EnrichedHolding } from '../types';
+import { useDarkMode } from '../App';
 
 const CHART_COLORS = [
   '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6',
@@ -45,7 +46,7 @@ export function SectorChart({ holdings }: Props) {
     }],
   };
 
-  const isDark = document.documentElement.classList.contains('dark');
+  const isDark = useDarkMode();
 
   const options = {
     responsive: true,

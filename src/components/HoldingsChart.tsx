@@ -1,5 +1,6 @@
 import { Bar } from 'react-chartjs-2';
 import type { EnrichedHolding } from '../types';
+import { useDarkMode } from '../App';
 
 const CHART_COLORS = [
   '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6',
@@ -46,7 +47,7 @@ export function HoldingsChart({ holdings, baseCurrency }: Props) {
     }],
   };
 
-  const isDark = document.documentElement.classList.contains('dark');
+  const isDark = useDarkMode();
 
   // Dynamic height based on number of holdings
   const chartHeight = Math.max(200, resolved.length * 32);

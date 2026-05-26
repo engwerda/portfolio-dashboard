@@ -1,10 +1,29 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import type { RawHolding, ParseWarning } from './types';
 import { CsvUpload } from './components/CsvUpload';
 import { Dashboard } from './components/Dashboard';
 import { ThemeToggle } from './components/ThemeToggle';
 
+export const DarkModeContext = createContext(true);
+export const useDarkMode = () => useContext(DarkModeContext);
+
 export default function App() {
+  const [isDark, setIsDark] = useState(() => {
+    const stored = localStorage.getItem('theme');
+    if (stored) return stored === 'dark';
+    return true;
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) {
+      root.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
   const [holdings, setHoldings] = useState<RawHolding[] | null>(null);
   const [warnings, setWarnings] = useState<ParseWarning[]>([]);
 
@@ -48,14 +67,18 @@ export default function App() {
             </svg>
             <span className="font-bold text-lg tracking-tight">Portfolio Snapshot</span>
           </div>
-          <ThemeToggle />
+          <DarkModeContext.Provider value={isDark}>
+            <ThemeToggle isDark={isDark} onToggle={() => setIsDark(!isDark)} />
+          </DarkModeContext.Provider>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {holdings ? (
-          <Dashboard holdings={holdings} warnings={warnings} onReset={handleReset} />
+          <DarkModeContext.Provider value={isDark}>
+            <Dashboard holdings={holdings} warnings={warnings} onReset={handleReset} />
+          </DarkModeContext.Provider>
         ) : (
           <CsvUpload onParsed={handleParsed} />
         )}
