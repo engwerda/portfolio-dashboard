@@ -1,11 +1,9 @@
-import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { RawHolding, ParseWarning } from './types';
 import { CsvUpload } from './components/CsvUpload';
 import { Dashboard } from './components/Dashboard';
 import { ThemeToggle } from './components/ThemeToggle';
-
-export const DarkModeContext = createContext(true);
-export const useDarkMode = () => useContext(DarkModeContext);
+import { DarkModeContext } from './context';
 
 export default function App() {
   const [isDark, setIsDark] = useState(() => {
